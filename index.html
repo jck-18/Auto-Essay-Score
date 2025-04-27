@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Essay Scoring Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border-left: 4px solid #4CAF50;
+        }
+    </style>
+    <script>
+        async function scoreEssay(endpoint) {
+            const essay = document.getElementById('essay').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (essay.length < 20) {
+                resultDiv.innerText = 'Please enter an essay with at least 20 characters';
+                return;
+            }
+            
+            resultDiv.innerText = 'Processing...';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5000/' + endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: essay })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (endpoint === 'test') {
+                    resultDiv.innerText = `Score: ${result.score}\nWord Count: ${result.word_count}`;
+                } else {
+                    resultDiv.innerText = `Score: ${result.score}`;
+                    if (result.note) {
+                        resultDiv.innerText += `\nNote: ${result.note}`;
+                    }
+                }
+            } catch (error) {
+                resultDiv.innerText = 'Error: ' + error.message;
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Essay Scoring Test</h1>
+        <textarea id="essay" rows="10" placeholder="Enter your essay here (at least 20 characters)"></textarea>
+        <div>
+            <button onclick="scoreEssay('')">Score Essay (Model)</button>
+            <button onclick="scoreEssay('test')">Score Essay (Test Mode)</button>
+        </div>
+        <div id="result"></div>
+    </div>
+</body>
+</html> 
