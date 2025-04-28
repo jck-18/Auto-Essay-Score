@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "gemma_app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "gemma_app.py"
+    }
+  ],
+  "env": {
+    "FLASK_ENV": "production",
+    "FLASK_APP": "gemma_app.py"
+  }
+} 
