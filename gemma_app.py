@@ -7,11 +7,12 @@ from gemma_scorer import GemmaEssayScorer
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Hard-code the API key for direct testing
-api_key = "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"
-# Only use environment variable if key is not hard-coded
+# Get API key from environment variable first, fallback to hardcoded key for local testing
+api_key = os.environ.get("OPENROUTER_API_KEY")
 if not api_key:
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    # Fallback for local development only
+    api_key = "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"
+    print("Warning: Using hardcoded API key. Set OPENROUTER_API_KEY environment variable for production.")
     
 scorer = GemmaEssayScorer(api_key)
 
