@@ -2,10 +2,48 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 import json
-from gemma_scorer import GemmaEssayScorer
+import sys
+
+# We need to handle the import error for gemma_scorer if the dependencies are not installed
+try:
+    from gemma_scorer import GemmaEssayScorer
+    have_gemma_scorer = True
+except ImportError:
+    print("Could not import GemmaEssayScorer - will use simplified scoring")
+    have_gemma_scorer = False
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Define a simple scorer function to use if gemma_scorer is not available
+def simple_score_essay(essay_text):
+    word_count = len(essay_text.split())
+    sentences = [s.strip() for s in essay_text.split('.') if s.strip()]
+    sentence_count = len(sentences)
+    
+    # Simple scoring logic
+    coherence_score = min(10, max(1, 5 + (1 if word_count > 200 else 0)))
+    grammar_score = min(10, max(1, 5 + (1 if sentence_count > 10 else 0)))
+    content_score = min(10, max(1, word_count // 50))
+    evidence_score = min(10, max(1, word_count // 75))
+    
+    overall_score = round((coherence_score + grammar_score + content_score + evidence_score) / 4)
+    
+    return {
+        "coherence_score": coherence_score,
+        "grammar_score": grammar_score,
+        "content_score": content_score,
+        "evidence_score": evidence_score,
+        "overall_score": overall_score,
+        "scoring_method": "basic",
+        "feedback": {
+            "coherence": f"Your essay has approximately {sentence_count} sentences. Consider focusing on logical structure and flow.",
+            "grammar": "The essay might benefit from a review for grammar and punctuation.",
+            "content": f"Your essay contains {word_count} words. Consider adding more detailed arguments for a higher score.",
+            "evidence": "Try to include specific examples and references to support your points."
+        },
+        "summary": f"This {word_count}-word essay demonstrates basic writing skills. Focus on improving organization and evidence for a better score."
+    }
 
 # Get API key from environment variable first, fallback to hardcoded key for local testing
 api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -13,8 +51,12 @@ if not api_key:
     # Fallback for local development only
     api_key = "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"
     print("Warning: Using hardcoded API key. Set OPENROUTER_API_KEY environment variable for production.")
-    
-scorer = GemmaEssayScorer(api_key)
+
+# Initialize the scorer if available
+if have_gemma_scorer:
+    scorer = GemmaEssayScorer(api_key)
+else:
+    scorer = None
 
 @app.route('/')
 def home():
@@ -41,7 +83,13 @@ def score_essay():
                 'message': 'Please provide an essay with at least 50 characters.'
             }), 400
             
-        # Try online scoring with API
+        # If we don't have the required dependencies, use simple scoring
+        if not have_gemma_scorer:
+            print("Using simplified scoring due to missing dependencies")
+            result = simple_score_essay(essay_text)
+            return jsonify(result), 200
+        
+        # Otherwise try online scoring with API    
         try:
             print(f"Processing essay with {len(essay_text)} characters")
             if api_key:
@@ -80,7 +128,14 @@ def score_essay():
             print(f"Exception in scoring: {str(e)}")
             import traceback
             traceback.print_exc()
-            result = scorer.score_essay_offline(essay_text)
+            
+            # If offline scoring is available, use it
+            if hasattr(scorer, 'score_essay_offline'):
+                result = scorer.score_essay_offline(essay_text)
+            else:
+                # Otherwise use our simple scorer
+                result = simple_score_essay(essay_text)
+                
             result['scoring_method'] = 'basic'
             # Store but don't expose the API error
             result['_api_error'] = str(e)
@@ -101,6 +156,7 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'api_connected': api_key is not None,
+        'advanced_scoring': have_gemma_scorer,
         'version': '1.0.0'
     })
 
