@@ -2,18 +2,21 @@
   "version": 2,
   "builds": [
     {
-      "src": "gemma_app.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/api/static/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "gemma_app.py"
+      "dest": "/api/index.py"
     }
   ],
   "env": {
-    "FLASK_ENV": "production",
-    "FLASK_APP": "gemma_app.py"
+    "PYTHONUNBUFFERED": "1"
   }
 } 
